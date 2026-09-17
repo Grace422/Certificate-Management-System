@@ -1,38 +1,25 @@
-import type { Metadata, Viewport } from 'next';
-import './globals.css';
-import { AuthProvider } from '@/context/AuthContext';
-import { ToastProvider } from '@/context/ToastContext';
-
-// Using the native system font stack (see globals.css): no external request,
-// no layout shift, and nothing leaks to a third-party CDN — a deliberate
-// choice for a government service. To use Inter instead:
-//   import { Inter } from 'next/font/google';
-//   const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-// then add `className={inter.variable}` to <html>.
+import type { Metadata } from "next";
+import { AuthProvider } from "@/lib/auth-context";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: {
-    default: 'CivilReg Cameroon — Civil status certificates online',
-    template: '%s · CivilReg Cameroon',
-  },
-  description:
-    'Request birth, death and marriage certificates from any region of Cameroon and collect them at the municipal building nearest to you.',
-  robots: { index: true, follow: true },
-};
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  themeColor: '#047857',
+  title: "CSCMS — Civil Status Certificates, Cameroon",
+  description: "Request or recover birth, death, and marriage certificates from any municipal council in Cameroon."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        {/* Loaded at runtime (not build time) so the build never depends on
+            network access to Google Fonts. Falls back to system sans-serif
+            (see tailwind.config.ts) if this fails to load. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      </head>
       <body className="font-sans">
-        <AuthProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </AuthProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

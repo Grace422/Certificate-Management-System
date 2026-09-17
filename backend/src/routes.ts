@@ -5,6 +5,7 @@ import recordRoutes from "./modules/records/records.routes";
 import requestRoutes from "./modules/requests/requests.routes";
 import councilRoutes from "./modules/councils/councils.routes";
 import auditRoutes from "./modules/audit/audit.routes";
+import lossRoutes from "./modules/loss-declarations/loss.routes";
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use("/records", recordRoutes);
 router.use("/requests", requestRoutes);
 router.use("/councils", councilRoutes);
 router.use("/audit-logs", auditRoutes);
+router.use("/loss-declarations", lossRoutes);
 
 export default router;

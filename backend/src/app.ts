@@ -10,7 +10,8 @@ import { logger } from "./utils/logger";
 
 export function createApp(): Application {
   const app = express();
-
+  app.set("trust proxy", 1);
+  
   // --- Security & parsing middleware (order matters) ---
   app.use(helmet()); // sets secure HTTP headers (CSP, X-Frame-Options, etc.)
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));

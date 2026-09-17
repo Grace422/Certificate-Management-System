@@ -13,7 +13,7 @@ export default function AdminPage() {
   useEffect(() => {
     (async () => {
       try {
-        await authFetch("/requests");
+        await authFetch("/audit-logs");
         setStatus("done");
       } catch (err) {
         if (err instanceof ApiError && err.status === 501) {
@@ -32,7 +32,7 @@ export default function AdminPage() {
 
   return (
     <div className="max-w-xl">
-      <h1 className="text-2xl font-semibold text-ink">Incoming requests</h1>
+      <h1 className="text-2xl font-semibold text-ink">Audit log</h1>
       <Card withFlagBar={false} className="mt-6">
         {status === "loading" && <p className="text-muted">Loading…</p>}
         {(status === "not_available" || status === "error") && (

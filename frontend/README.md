@@ -1,156 +1,46 @@
-# CivilReg Cameroon — Frontend
+# CSCMS Frontend
 
-Next.js 16 (App Router) · TypeScript · Tailwind v4 · SWR · Leaflet
+Next.js 14 (App Router) + TypeScript + Tailwind CSS.
 
-Citizens request birth / death / marriage certificates from anywhere in Cameroon;
-admins process the requests and dispatch documents to the municipal building
-nearest the citizen.
-
----
-
-## 1. Run it
+## Setup
 
 ```bash
+cp .env.local.example .env.local   # point NEXT_PUBLIC_API_URL at your backend
 npm install
-cp .env.example .env.local     # point NEXT_PUBLIC_API_URL at your Express server
-npm run dev                    # http://localhost:3000
+npm run dev                         # http://localhost:3000
 ```
 
-| Variable                     | Default                        | Purpose                                              |
-| ---------------------------- | ------------------------------ | ---------------------------------------------------- |
-| `NEXT_PUBLIC_API_URL`        | `http://localhost:5000/api/v1` | Base URL of your Express backend                     |
-| `NEXT_PUBLIC_AUTH_MODE`      | `cookie`                       | `cookie` (httpOnly, recommended) or `bearer`         |
-| `NEXT_PUBLIC_SESSION_COOKIE` | `access_token`                 | Cookie name the edge proxy checks for a session      |
+Requires the backend running on the URL in `.env.local` (defaults to `http://localhost:4000/api/v1`), with `CORS_ORIGIN` on the backend set to `http://localhost:3000`.
 
----
-
-## 2. Wiring this to YOUR backend — start here
-
-**Every route in the app is declared in one file: `src/lib/api/endpoints.ts`.**
-No component or hook contains a hard-coded URL. If your Express routes differ,
-edit that file only — nothing else changes.
-
-The response parsers are deliberately forgiving, so you probably don't need to
-change your backend at all:
-
-| Your backend returns             | Handled by                                       |
-| -------------------------------- | ------------------------------------------------ |
-| `{ success, data }`              | `unwrap()` in `client.ts`                        |
-| the payload directly             | `unwrap()` falls through                         |
-| `{ items, total, totalPages }`   | `toPage()` in `requests.service.ts`              |
-| `{ rows, count }` (Sequelize)    | `toPage()`                                       |
-| a bare array                     | `toPage()`                                       |
-| express-validator `errors[]`     | `toApiError()` → per-field messages on the form  |
-| `{ errors: { email: "..." } }`   | `toApiError()`                                   |
-
-### Endpoints the frontend calls
-
-**Auth** — `POST /auth/register`, `POST /auth/login`, `POST /auth/mfa/verify`,
-`POST /auth/mfa/resend`, `POST /auth/mfa/setup`, `POST /auth/mfa/enable`,
-`POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`,
-`POST /auth/forgot-password`, `POST /auth/reset-password`,
-`POST /auth/change-password`, `GET /auth/csrf-token`
-
-**Citizen** — `GET|POST /requests`, `GET /requests/:id`,
-`PATCH /requests/:id/cancel`, `GET /requests/:id/timeline`,
-`POST /requests/:id/attachments`, `GET /requests/:id/document`,
-`GET /requests/track/:reference`, `PUT /users/me`
-
-**Offices** — `GET /offices`, `GET /offices/:id`,
-`GET /offices/nearest?lat&lng&limit`, `POST|PUT|DELETE /offices`,
-`POST /offices/import`
-
-**Admin** — `GET /admin/stats`, `GET /admin/requests`,
-`GET /admin/requests/:id`, `PATCH /admin/requests/:id/status`,
-`PATCH /admin/requests/:id/dispatch`, `POST /admin/requests/:id/match`,
-`GET /admin/users`, `GET /admin/records`, `POST /admin/records/import`
-
-### The two shapes that matter most
-
-`POST /auth/login` must return **either** a session **or** an MFA challenge:
-
-```jsonc
-// MFA required
-{ "success": true, "data": { "mfaRequired": true, "mfaToken": "<short-lived JWT>" } }
-
-// No MFA
-{ "success": true, "data": { "mfaRequired": false, "accessToken": "…", "user": { … } } }
-```
-
-`POST /auth/mfa/verify` takes `{ mfaToken, code }` and returns `{ accessToken?, user }`.
-
-If your backend has no `/offices/nearest` route, the frontend falls back to
-fetching all offices and sorting them client-side with the haversine formula
-(`src/lib/geo.ts`) — the UI works either way.
-
----
-
-## 3. Architecture
+## Structure
 
 ```
 src/
-├─ app/
-│  ├─ (auth)/          login (+ MFA step), register, forgot-password
-│  ├─ (app)/           citizen area  — guarded, AppShell variant="citizen"
-│  ├─ admin/           staff area    — guarded, AppShell variant="admin"
-│  ├─ track/           PUBLIC tracking by reference (no sign-in)
-│  └─ layout.tsx       AuthProvider → ToastProvider
-├─ components/
-│  ├─ ui/              Button, Field (Input/Password/Select/Textarea), Modal,
-│  │                   OtpInput, FileDrop, Card, StatusBadge, EmptyState…
-│  ├─ layout/          AppShell (responsive sidebar+drawer), Guard (RBAC)
-│  ├─ map/             OfficeMap (dynamic, ssr:false) + OfficeMapInner (Leaflet)
-│  └─ requests/        Timeline (lifecycle stepper)
-├─ context/            AuthContext (session via SWR), ToastContext
-├─ hooks/              useApi (SWR wrapper), useGeolocation
-├─ lib/
-│  ├─ api/             endpoints.ts ⟵ EDIT THIS · client.ts · *.service.ts
-│  ├─ validation.ts    zod schemas mirroring server rules
-│  ├─ geo.ts           haversine, nearest-office sort, directions deep-link
-│  ├─ constants.ts     10 regions, capitals, statuses + colours
-│  └─ types.ts         domain model — keep in sync with your DB
-└─ proxy.ts            edge route gate + security headers
+  app/
+    page.tsx              landing page
+    register/             citizen registration (step 1)
+    mfa-setup/             MFA QR setup + verification (step 2 of registration)
+    login/                 login (step 1: email+password)
+    mfa-verify/            login step 2: TOTP code
+    dashboard/             citizen area (protected, role=citizen)
+    admin/                 admin area (protected, role != citizen)
+  components/              Button, Input, Card, FlagBar, AppShell
+  lib/
+    api.ts                 fetch wrapper (credentials, envelope parsing, ApiError)
+    auth-context.tsx        session state: access token in memory, silent refresh, authFetch
+  types/                   shared TS types
 ```
 
-**Data fetching.** All reads go through `useApi` (SWR): deduplication, per-key
-caching, no `setState` inside effects. Writes call a service directly, then
-push the result into the SWR cache (`mutate(updated, { revalidate: false })`).
+## How auth works here
 
-**Routing.** `src/proxy.ts` (Next 16's replacement for `middleware.ts`) redirects
-signed-out visitors and sets security headers. `<Guard roles={[…]}>` enforces
-roles client-side.
+- **Access token**: held in React state only (never localStorage/sessionStorage) — gone on tab close, which is the point: it limits the blast radius if an XSS bug ever leaked JS-readable storage.
+- **Refresh token**: httpOnly cookie set by the backend. Never touched by frontend JS. `AuthProvider` calls `POST /auth/refresh` once on mount to silently restore a session after a page reload.
+- **authFetch**: use this (not raw `fetch`) for any authenticated call. It attaches the access token and, on a 401, retries once after a silent refresh — covers the access token's 15-minute expiry without forcing a re-login mid-session.
+- Login branches on `requiresSetup`: an account that has never completed MFA (true for admin accounts just provisioned by Super Admin, who never go through `/register`) gets routed to `/mfa-setup` instead of `/mfa-verify` after password check. Both pages share the same `completeMfaSetup` flow.
+- Both MFA steps (registration and login) require **two page loads** by design — the `challengeToken` lives in `AuthProvider`'s React state, so it survives client-side navigation (`router.push`) but is lost on a hard refresh, intentionally forcing the flow to restart rather than resume from a stale, possibly-expired challenge.
 
----
+## Status
 
-## 4. Security notes
+Fully working: registration, MFA (TOTP) setup, login (including the admin-first-login MFA setup branch), MFA verify, silent refresh, logout, protected routing by role.
 
-This is the frontend half only — every control below must be enforced again
-server-side. A browser is never a trust boundary.
-
-| Concern             | What the frontend does                                                                 |
-| ------------------- | -------------------------------------------------------------------------------------- |
-| Token storage       | Cookie mode by default (httpOnly ⇒ XSS can't read it). Bearer mode keeps the token **in memory only** — never `localStorage`. |
-| Session expiry      | One refresh attempt per 401, queued replays, no stampede (`client.ts`).                 |
-| CSRF                | `X-CSRF-Token` double-submit header on POST/PUT/PATCH/DELETE.                            |
-| Account enumeration | Login and forgot-password return identical messages whether or not the email exists.     |
-| MFA                 | TOTP/OTP step with paste-aware 6-box input, 30 s resend cooldown, recovery codes.         |
-| Password policy     | 12+ chars, mixed case, digit, symbol, live strength meter (`validation.ts`).              |
-| Headers             | `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` in `proxy.ts`. |
-| Uploads             | Extension + size checks before upload. **Verify magic bytes and AV-scan server-side.**    |
-| Geolocation         | Requested only on an explicit click, never on page load.                                  |
-| Third parties       | No external fonts or CDNs. Map tiles come from OpenStreetMap.                              |
-
-**Still to do on the backend:** rate-limit `/auth/*`, add a strict CSP,
-argon2id password hashing, short access-token TTL with rotating refresh tokens,
-per-request authorisation checks (never trust `role` from the client), an
-append-only audit log for every civil-status read, and encryption at rest.
-
----
-
-## 5. What is not built yet
-
-- Admin `POST /admin/requests/:id/document` upload UI (service method exists).
-- Email verification and password-reset landing pages (`/verify-email`, `/reset-password`).
-- Offline/PWA support and i18n (French + English) — worth adding for Cameroon.
-- Tests. Suggested: Vitest + Testing Library for `geo.ts`, `validation.ts` and
-  `client.ts` error mapping; Playwright for login → request → dispatch.
+Request-certificate, loss-declaration, and track pages call real, working backend endpoints (record search, request creation/listing, loss declarations). The admin pages (`/admin/requests`, `/admin/upload`, `/admin/audit`) are currently read-only placeholders that confirm connectivity to their respective endpoints (`GET /requests`, `GET /users`, `GET /audit-logs`) but don't yet expose the approve/reject/ready/complete actions in the UI - those exist on the backend (`PATCH /requests/:id/approve` etc.) and just need forms wired up next.
