@@ -1,27 +1,36 @@
 import { Request, Response } from "express";
+import { parse } from "csv-parse/sync";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/ApiResponse";
-import * as service from "./records.service";
+import { ApiError } from "../../utils/ApiError";
+import { toPublicRecord } from "./records.types";
+import * as recordsService from "./records.service";
+import { BulkUploadRow } from "./records.service";
 
-// CivilRecord controller - thin layer: parse request, call service, format response.
-// Business logic lives in records.service.ts, not here.
-
-export const list = asyncHandler(async (req: Request, res: Response) => {
-  const items = await service.list();
-  sendSuccess(res, items, "CivilRecord list retrieved");
+export const search = asyncHandler(async (req: Request, res: Response) => {
+  const { fullName, dateOfBirth, placeOfBirth } = req.query as Record<string, string | undefined>;
+  const records = await recordsService.search({ fullName, dateOfBirth, placeOfBirth });
+  sendSuccess(res, records.map(toPublicRecord), "Search results");
 });
 
 export const getById = asyncHandler(async (req: Request, res: Response) => {
-  const item = await service.getById(req.params.id);
-  sendSuccess(res, item, "CivilRecord retrieved");
+  const record = await recordsService.getById(req.params.id);
+  sendSuccess(res, toPublicRecord(record), "Record retrieved");
 });
 
-export const create = asyncHandler(async (req: Request, res: Response) => {
-  const item = await service.create(req.body);
-  sendSuccess(res, item, "CivilRecord created", 201);
-});
+export const bulkUpload = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) throw ApiError.badRequest("No CSV file uploaded (expected multipart field 'file')");
 
-export const update = asyncHandler(async (req: Request, res: Response) => {
-  const item = await service.update(req.params.id, req.body);
-  sendSuccess(res, item, "CivilRecord updated");
+  let rows: BulkUploadRow[];
+  try {
+    rows = parse(req.file.buffer, { columns: true, skip_empty_lines: true, trim: true });
+  } catch (err) {
+    throw ApiError.badRequest("Could not parse CSV file", { error: (err as Error).message });
+  }
+
+  if (rows.length === 0) throw ApiError.badRequest("CSV file has no data rows");
+  if (rows.length > 5000) throw ApiError.badRequest("CSV too large - split into batches of 5000 rows or fewer");
+
+  const result = await recordsService.bulkUpload(rows);
+  sendSuccess(res, result, `Imported ${result.insertedCount} of ${rows.length} rows (${result.errors.length} error(s))`);
 });

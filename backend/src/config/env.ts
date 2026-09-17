@@ -10,10 +10,6 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   API_PREFIX: z.string().default("/api/v1"),
 
-  // DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  // DB_POOL_MAX: z.coerce.number().default(20),
-  // DB_SSL: z.coerce.boolean().default(false),
-
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   DB_POOL_MAX: z.coerce.number().default(20),
   DB_SSL: z

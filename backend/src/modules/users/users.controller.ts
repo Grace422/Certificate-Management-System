@@ -1,27 +1,19 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/ApiResponse";
-import * as service from "./users.service";
-
-// User controller - thin layer: parse request, call service, format response.
-// Business logic lives in users.service.ts, not here.
+import * as usersService from "./users.service";
 
 export const list = asyncHandler(async (req: Request, res: Response) => {
-  const items = await service.list();
-  sendSuccess(res, items, "User list retrieved");
+  const users = await usersService.list();
+  sendSuccess(res, users, "Staff accounts retrieved");
 });
 
 export const getById = asyncHandler(async (req: Request, res: Response) => {
-  const item = await service.getById(req.params.id);
-  sendSuccess(res, item, "User retrieved");
+  const user = await usersService.getById(req.params.id);
+  sendSuccess(res, user, "User retrieved");
 });
 
-export const create = asyncHandler(async (req: Request, res: Response) => {
-  const item = await service.create(req.body);
-  sendSuccess(res, item, "User created", 201);
-});
-
-export const update = asyncHandler(async (req: Request, res: Response) => {
-  const item = await service.update(req.params.id, req.body);
-  sendSuccess(res, item, "User updated");
+export const createAdmin = asyncHandler(async (req: Request, res: Response) => {
+  const user = await usersService.createAdmin(req.body);
+  sendSuccess(res, user, "Staff account created. They must complete MFA setup on first login.", 201);
 });

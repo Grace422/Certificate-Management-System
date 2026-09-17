@@ -1,27 +1,9 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/ApiResponse";
-import * as service from "./audit.service";
-
-// AuditLog controller - thin layer: parse request, call service, format response.
-// Business logic lives in audit.service.ts, not here.
+import * as auditService from "./audit.service";
 
 export const list = asyncHandler(async (req: Request, res: Response) => {
-  const items = await service.list();
-  sendSuccess(res, items, "AuditLog list retrieved");
-});
-
-export const getById = asyncHandler(async (req: Request, res: Response) => {
-  const item = await service.getById(req.params.id);
-  sendSuccess(res, item, "AuditLog retrieved");
-});
-
-export const create = asyncHandler(async (req: Request, res: Response) => {
-  const item = await service.create(req.body);
-  sendSuccess(res, item, "AuditLog created", 201);
-});
-
-export const update = asyncHandler(async (req: Request, res: Response) => {
-  const item = await service.update(req.params.id, req.body);
-  sendSuccess(res, item, "AuditLog updated");
+  const logs = await auditService.list();
+  sendSuccess(res, logs, "Audit log retrieved");
 });

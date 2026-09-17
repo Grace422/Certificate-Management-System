@@ -1,23 +1,21 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../../middlewares/auth.middleware";
+import { validate } from "../../middlewares/validate.middleware";
+import { createRequestSchema, rejectSchema } from "./requests.validation";
 import * as controller from "./requests.controller";
 
 const router = Router();
-
-// All routes below require a valid JWT. Role checks are added per-route
-// once the actual permission model for CertificateRequest is finalized.
 router.use(requireAuth);
 
-// GET /api/v1/requests
-router.get("/", controller.list);
+router.post("/", requireRole("citizen"), validate(createRequestSchema), controller.create);
 
-// GET /api/v1/requests/:id
+// GET / behaves per-role - see requests.service.list() for the branching logic.
+router.get("/", controller.list);
 router.get("/:id", controller.getById);
 
-// POST /api/v1/requests
-router.post("/", controller.create);
-
-// PATCH /api/v1/requests/:id
-router.patch("/:id", controller.update);
+router.patch("/:id/approve", requireRole("origin_admin"), controller.approve);
+router.patch("/:id/reject", requireRole("origin_admin"), validate(rejectSchema), controller.reject);
+router.patch("/:id/ready", requireRole("destination_admin"), controller.markReady);
+router.patch("/:id/complete", requireRole("destination_admin"), controller.complete);
 
 export default router;

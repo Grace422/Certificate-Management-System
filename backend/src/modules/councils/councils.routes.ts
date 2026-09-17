@@ -1,23 +1,16 @@
 import { Router } from "express";
-import { requireAuth, requireRole } from "../../middlewares/auth.middleware";
+import { requireAuth } from "../../middlewares/auth.middleware";
+import { validate } from "../../middlewares/validate.middleware";
+import { listQuerySchema, nearestQuerySchema } from "./councils.validation";
 import * as controller from "./councils.controller";
 
 const router = Router();
+router.use(requireAuth); // any authenticated role may look up councils
 
-// All routes below require a valid JWT. Role checks are added per-route
-// once the actual permission model for Council is finalized.
-router.use(requireAuth);
-
-// GET /api/v1/councils
-router.get("/", controller.list);
-
-// GET /api/v1/councils/:id
+// IMPORTANT: /nearest must be registered BEFORE /:id, otherwise Express
+// would match "nearest" as an :id param on the route below it.
+router.get("/nearest", validate(nearestQuerySchema), controller.nearest);
+router.get("/", validate(listQuerySchema), controller.list);
 router.get("/:id", controller.getById);
-
-// POST /api/v1/councils
-router.post("/", controller.create);
-
-// PATCH /api/v1/councils/:id
-router.patch("/:id", controller.update);
 
 export default router;

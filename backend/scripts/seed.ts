@@ -14,16 +14,24 @@ import path from "path";
 import bcrypt from "bcrypt";
 import { pool } from "../src/config/db";
 import { logger } from "../src/utils/logger";
+import { generateMfaSecret } from "../src/utils/mfa";
 
 const SEEDS_DIR = path.join(__dirname, "..", "db", "seeds");
 const BCRYPT_ROUNDS = 12;
 
 async function runSqlSeeds(): Promise<void> {
+  // Simple idempotency guard: councils.sql has no natural unique key to
+  // ON CONFLICT against, so instead we just skip seeding entirely if the
+  // table already has data - safe for repeated `npm run seed` runs.
+  const existing = await pool.query("SELECT COUNT(*) FROM councils");
+  if (Number(existing.rows[0].count) > 0) {
+    logger.info("Councils already seeded, skipping SQL seed files.");
+    return;
+  }
+
   const files = fs.readdirSync(SEEDS_DIR).filter((f) => f.endsWith(".sql")).sort();
   for (const file of files) {
     const sql = fs.readFileSync(path.join(SEEDS_DIR, file), "utf-8");
-    // ON CONFLICT-free files should be safe to re-run only if the table is
-    // empty; for repeatable local resets, TRUNCATE the relevant tables first.
     await pool.query(sql);
     logger.info(`Seeded: ${file}`);
   }
@@ -40,11 +48,12 @@ async function createSuperAdmin(): Promise<void> {
   }
 
   const passwordHash = await bcrypt.hash(plainPassword, BCRYPT_ROUNDS);
+  const mfaSecret = generateMfaSecret();
 
   await pool.query(
-    `INSERT INTO users (first_name, last_name, email, password_hash, role, is_active)
-     VALUES ($1, $2, $3, $4, 'super_admin', true)`,
-    ["Super", "Admin", email, passwordHash]
+    `INSERT INTO users (first_name, last_name, email, password_hash, role, is_active, mfa_secret)
+     VALUES ($1, $2, $3, $4, 'super_admin', true, $5)`,
+    ["Super", "Admin", email, passwordHash, mfaSecret]
   );
 
   logger.info(`✅ Super admin created: ${email} (password: ${plainPassword} - CHANGE IMMEDIATELY)`);

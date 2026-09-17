@@ -1,22 +1,26 @@
-import { ApiError } from "../../utils/ApiError";
-// import { query } from "../../config/db"; // uncomment once DB schema/queries are wired up
+import { query } from "../../config/db";
 
-// AuditLog data-access + business logic.
-// Deliberately throws "not implemented" for now - real SQL queries
-// (parameterized, via config/db.ts) are added in the Database Implementation step.
-
-export async function list(): Promise<unknown[]> {
-  throw ApiError.internal("audit.service.list not yet implemented");
+export interface AuditLogRow {
+  id: string;
+  actor_id: string | null;
+  actor_email?: string;
+  action: string;
+  entity: string;
+  entity_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
 }
 
-export async function getById(id: string): Promise<unknown> {
-  throw ApiError.internal("audit.service.getById not yet implemented");
-}
-
-export async function create(data: unknown): Promise<unknown> {
-  throw ApiError.internal("audit.service.create not yet implemented");
-}
-
-export async function update(id: string, data: unknown): Promise<unknown> {
-  throw ApiError.internal("audit.service.update not yet implemented");
+// Read-only by design - see migration 008's note on revoking UPDATE/DELETE
+// from the app's runtime DB role in production.
+export async function list(limit = 200): Promise<AuditLogRow[]> {
+  const result = await query<AuditLogRow>(
+    `SELECT al.*, u.email AS actor_email
+     FROM audit_logs al
+     LEFT JOIN users u ON u.id = al.actor_id
+     ORDER BY al.created_at DESC
+     LIMIT $1`,
+    [limit]
+  );
+  return result.rows;
 }
