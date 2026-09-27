@@ -16,6 +16,10 @@ interface CivilRecordResult {
   registeredCouncilName?: string;
 }
 
+// Wraps the browser Geolocation API in a Promise so it can be awaited like
+// any other async call. This is the actual mechanism behind FR9/FR5: the
+// citizen's current position is what the backend uses (via PostGIS) to pick
+// the nearest municipal council to route the approved certificate to.
 function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!("geolocation" in navigator)) {
@@ -25,7 +29,7 @@ function getCurrentPosition(): Promise<GeolocationPosition> {
     navigator.geolocation.getCurrentPosition(resolve, reject, {
       enableHighAccuracy: true,
       timeout: 10000,
-      maximumAge: 60000
+      maximumAge: 60000 // a position up to 1 minute old is fine - avoids re-prompting for a fresh fix every time
     });
   });
 }
@@ -38,6 +42,8 @@ export default function RequestCertificatePage() {
   const [searchStatus, setSearchStatus] = useState<"idle" | "loading" | "error">("idle");
   const [searchError, setSearchError] = useState<string | null>(null);
 
+  // Per-result submission state, keyed by record id, so multiple results
+  // can each show their own independent loading/success/error state.
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [submitResult, setSubmitResult] = useState<Record<string, { status: "success" | "error"; message: string }>>({});
 
@@ -47,6 +53,8 @@ export default function RequestCertificatePage() {
     setSearchError(null);
     setResults(null);
     try {
+      // Only send fields the person filled in - the backend requires at
+      // least one, but partial matches (e.g. name only) are fine.
       const params = new URLSearchParams(
         Object.entries(search).filter(([, v]) => v.trim() !== "")
       ).toString();
@@ -80,6 +88,7 @@ export default function RequestCertificatePage() {
     } catch (err) {
       let message = "Something went wrong. Please try again.";
       if (err instanceof GeolocationPositionError || (err as any)?.code !== undefined) {
+        // GeolocationPositionError: 1 = permission denied, 2 = unavailable, 3 = timeout
         const geoErr = err as GeolocationPositionError;
         message = geoErr.code === 1
           ? "Location access was denied. Please allow location access in your browser and try again - it's required to route your certificate to the council nearest you."

@@ -44,3 +44,21 @@ src/
 Fully working: registration, MFA (TOTP) setup, login (including the admin-first-login MFA setup branch), MFA verify, silent refresh, logout, protected routing by role.
 
 Request-certificate, loss-declaration, and track pages call real, working backend endpoints (record search, request creation/listing, loss declarations). The admin pages (`/admin/requests`, `/admin/upload`, `/admin/audit`) are currently read-only placeholders that confirm connectivity to their respective endpoints (`GET /requests`, `GET /users`, `GET /audit-logs`) but don't yet expose the approve/reject/ready/complete actions in the UI - those exist on the backend (`PATCH /requests/:id/approve` etc.) and just need forms wired up next.
+
+## Update: certificate view, stepper tracking, real admin pages
+
+- `dashboard/certificate/[requestId]` - renders the record's full data in a
+  layout mirroring the real bilingual Cameroon birth certificate, with a
+  Print/Save-as-PDF button. Only reachable once a request is
+  ready_for_pickup or completed.
+- `dashboard/track` - rebuilt as an accordion: each request/declaration is
+  a collapsible row; expanding shows a vertical stepper (`components/Timeline.tsx`)
+  of its progress, matching the reference screenshot style.
+- `admin/requests` - real approve/reject (origin_admin) and ready/complete
+  (destination_admin) actions, not a placeholder.
+- `admin/upload` - real file upload forms for both civil records and
+  councils CSVs, with per-row error reporting.
+- `admin/audit` - real table of audit log entries.
+- Fixed a real bug in `lib/api.ts`: it was forcing `Content-Type: application/json`
+  on every request, which silently broke multipart file uploads (the
+  browser needs to set its own boundary-included Content-Type for FormData).

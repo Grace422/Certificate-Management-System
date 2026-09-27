@@ -17,5 +17,6 @@ router.patch("/:id/approve", requireRole("origin_admin"), controller.approve);
 router.patch("/:id/reject", requireRole("origin_admin"), validate(rejectSchema), controller.reject);
 router.patch("/:id/ready", requireRole("destination_admin"), controller.markReady);
 router.patch("/:id/complete", requireRole("destination_admin"), controller.complete);
+router.get("/:id/certificate", requireRole("citizen"), controller.getCertificate);
 
 export default router;

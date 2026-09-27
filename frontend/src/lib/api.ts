@@ -24,12 +24,15 @@ interface FetchOptions extends RequestInit {
  */
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { accessToken, headers, ...rest } = options;
+  const isFormData = rest.body instanceof FormData;
 
   const res = await fetch(`${API_URL}${path}`, {
     ...rest,
     credentials: "include", // required for the refresh-token cookie
     headers: {
-      "Content-Type": "application/json",
+      // Do NOT set Content-Type for FormData - the browser must set it
+      // itself (including the multipart boundary), or file uploads break.
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...headers
     }

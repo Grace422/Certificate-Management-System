@@ -35,6 +35,7 @@ function clearRefreshCookie(res: Response): void {
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const { challengeToken, otpauthUrl } = await authService.register(req.body);
+  // No tokens yet - account isn't usable until MFA setup (verifyMfaSetup) completes.
   sendSuccess(res, { challengeToken, otpauthUrl }, "Registered. Scan the QR code and verify to activate your account.", 201);
 });
 
@@ -65,7 +66,7 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
   if (!raw) throw ApiError.unauthorized("No refresh token provided");
 
   const tokens = await authService.refreshTokens(raw);
-  setRefreshCookie(req, res, tokens.refreshToken);
+  setRefreshCookie(req, res, tokens.refreshToken); // rotated - old cookie value is now dead
   sendSuccess(res, { accessToken: tokens.accessToken }, "Token refreshed");
 });
 

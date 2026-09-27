@@ -46,3 +46,9 @@ export const complete = asyncHandler(async (req: Request, res: Response) => {
   const request = await requestsService.complete(req.params.id, req.user.id);
   sendSuccess(res, toPublicRequest(request), "Request completed");
 });
+
+export const getCertificate = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  const certificate = await requestsService.getCertificate(req.params.id, req.user.id);
+  sendSuccess(res, certificate, "Certificate retrieved");
+});

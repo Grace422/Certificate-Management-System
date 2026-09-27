@@ -2,6 +2,7 @@ import { query, withTransaction } from "../../config/db";
 import { ApiError } from "../../utils/ApiError";
 import { RequestRow } from "./requests.types";
 import { Role } from "../../middlewares/auth.middleware";
+import { CivilRecordRow, toFullRecord, FullCivilRecord } from "../records/records.types";
 
 const JOIN_SELECT = `
   r.*,
@@ -235,4 +236,60 @@ export async function complete(requestId: string, adminUserId: string): Promise<
     const updated = await client.query<RequestRow>(`SELECT ${JOIN_SELECT} ${JOIN_CLAUSE} WHERE r.id = $1`, [requestId]);
     return updated.rows[0];
   });
+}
+
+export interface CertificateView {
+  request: {
+    id: string;
+    status: string;
+    requestedAt: string;
+    completedAt: string | null;
+  };
+  record: FullCivilRecord;
+  originCouncilName: string;
+  destinationCouncilName: string | null;
+}
+
+/**
+ * Returns the full record detail for display/printing as a certificate -
+ * this is the "system collects the whole user's information from the
+ * database and presents it in a format similar to the original document"
+ * feature. Deliberately gated to:
+ *   - the request's own citizen (never another citizen's data)
+ *   - status 'ready_for_pickup' or 'completed' only (no early access before
+ *     the origin council has actually approved and routed the certificate)
+ */
+export async function getCertificate(requestId: string, citizenId: string): Promise<CertificateView> {
+  const res = await query<RequestRow & CivilRecordRow & { origin_name: string; destination_name: string | null }>(
+    `SELECT r.id, r.status, r.requested_at, r.completed_at, r.citizen_id,
+            cr.*, 
+            oc.name AS origin_name,
+            dc.name AS destination_name
+     FROM certificate_requests r
+     JOIN civil_records cr ON cr.id = r.civil_record_id
+     JOIN councils oc ON oc.id = r.origin_council_id
+     LEFT JOIN councils dc ON dc.id = r.destination_council_id
+     WHERE r.id = $1`,
+    [requestId]
+  );
+
+  if (res.rowCount === 0) throw ApiError.notFound("Request not found");
+  const row = res.rows[0];
+
+  if (row.citizen_id !== citizenId) throw ApiError.forbidden("You do not have access to this certificate");
+  if (row.status !== "ready_for_pickup" && row.status !== "completed") {
+    throw ApiError.conflict(`Certificate is not yet available (current status: ${row.status})`);
+  }
+
+  return {
+    request: {
+      id: row.id,
+      status: row.status,
+      requestedAt: row.requested_at,
+      completedAt: row.completed_at
+    },
+    record: toFullRecord(row),
+    originCouncilName: row.origin_name,
+    destinationCouncilName: row.destination_name
+  };
 }
