@@ -19,6 +19,7 @@ export interface UserRow {
   failed_login_count: number;
   locked_until: string | null;
   created_at: string;
+  council_name?: string;
 }
 
 // Safe subset returned to clients - never include password_hash or mfa_secret.
@@ -27,9 +28,15 @@ export interface PublicUser {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string | null;
+  dateOfBirth: string | null;
+  placeOfBirth: string | null;
   role: Role;
   mfaEnabled: boolean;
-  councilId: string | null; // for origin_admin/destination_admin: the council they manage
+  isActive: boolean;
+  councilId: string | null;
+  councilName?: string;
+  createdAt: string;
 }
 
 export function toPublicUser(row: UserRow): PublicUser {
@@ -38,8 +45,14 @@ export function toPublicUser(row: UserRow): PublicUser {
     firstName: row.first_name,
     lastName: row.last_name,
     email: row.email,
+    phone: row.phone,
+    dateOfBirth: row.date_of_birth,
+    placeOfBirth: row.place_of_birth,
     role: row.role,
     mfaEnabled: row.mfa_enabled,
-    councilId: row.home_council_id
+    isActive: row.is_active,
+    councilId: row.home_council_id,
+    councilName: row.council_name,
+    createdAt: row.created_at
   };
 }

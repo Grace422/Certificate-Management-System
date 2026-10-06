@@ -13,12 +13,24 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
 
 export const list = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
-  const declarations = await lossService.listMine(req.user.id);
+  const declarations = await lossService.list(req.user);
   sendSuccess(res, declarations.map(toPublicDeclaration), "Declarations retrieved");
 });
 
 export const getById = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
-  const declaration = await lossService.getById(req.params.id, req.user.id);
+  const declaration = await lossService.getById(req.params.id, req.user);
   sendSuccess(res, toPublicDeclaration(declaration), "Declaration retrieved");
+});
+
+export const verify = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  const declaration = await lossService.verify(req.params.id, req.user.id, req.body.notes);
+  sendSuccess(res, toPublicDeclaration(declaration), "Declaration verified");
+});
+
+export const reject = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  const declaration = await lossService.reject(req.params.id, req.user.id, req.body.notes);
+  sendSuccess(res, toPublicDeclaration(declaration), "Declaration rejected");
 });

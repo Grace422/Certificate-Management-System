@@ -15,12 +15,6 @@ interface CreateAdminInput {
   councilId?: string;
 }
 
-/**
- * Provisions a staff account. MFA is intentionally left disabled here - the
- * account holder completes MFA enrollment on their own first login (see
- * auth.service.login's requiresSetup branch), so Super Admin never
- * handles or sees the other person's TOTP secret.
- */
 export async function createAdmin(input: CreateAdminInput): Promise<PublicUser> {
   const existing = await query("SELECT id FROM users WHERE email = $1", [input.email]);
   if ((existing.rowCount ?? 0) > 0) {
@@ -45,15 +39,51 @@ export async function createAdmin(input: CreateAdminInput): Promise<PublicUser> 
   return toPublicUser(result.rows[0]);
 }
 
-export async function list(): Promise<PublicUser[]> {
+export interface UserListFilters {
+  role?: string;
+  search?: string;
+}
+
+/**
+ * Lists users for the admin "Manage users" view. Includes citizens too
+ * (Super Admin needs to see everyone in the system, not just staff) -
+ * protected by requireRole("super_admin") at the route level.
+ */
+export async function list(filters: UserListFilters = {}): Promise<PublicUser[]> {
+  const conditions: string[] = [];
+  const values: unknown[] = [];
+
+  if (filters.role) {
+    values.push(filters.role);
+    conditions.push(`u.role = $${values.length}`);
+  }
+  if (filters.search) {
+    values.push(`%${filters.search}%`);
+    conditions.push(`(u.first_name || ' ' || u.last_name ILIKE $${values.length} OR u.email ILIKE $${values.length})`);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
   const result = await query<UserRow>(
-    `SELECT * FROM users WHERE role != 'citizen' ORDER BY created_at DESC LIMIT 100`
+    `SELECT u.*, c.name AS council_name
+     FROM users u
+     LEFT JOIN councils c ON c.id = u.home_council_id
+     ${where}
+     ORDER BY u.created_at DESC
+     LIMIT 200`,
+    values
   );
   return result.rows.map(toPublicUser);
 }
 
 export async function getById(id: string): Promise<PublicUser> {
-  const result = await query<UserRow>("SELECT * FROM users WHERE id = $1", [id]);
+  const result = await query<UserRow>(
+    `SELECT u.*, c.name AS council_name
+     FROM users u
+     LEFT JOIN councils c ON c.id = u.home_council_id
+     WHERE u.id = $1`,
+    [id]
+  );
   if (result.rowCount === 0) throw ApiError.notFound("User not found");
   return toPublicUser(result.rows[0]);
 }
