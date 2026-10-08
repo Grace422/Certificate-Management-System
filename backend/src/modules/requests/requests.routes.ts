@@ -13,10 +13,10 @@ router.post("/", requireRole("citizen"), validate(createRequestSchema), controll
 router.get("/", controller.list);
 router.get("/:id", controller.getById);
 
-router.patch("/:id/approve", requireRole("origin_admin"), controller.approve);
-router.patch("/:id/reject", requireRole("origin_admin"), validate(rejectSchema), controller.reject);
-router.patch("/:id/ready", requireRole("destination_admin"), controller.markReady);
-router.patch("/:id/complete", requireRole("destination_admin"), controller.complete);
+router.patch("/:id/approve", requireRole("origin_admin", "super_admin"), controller.approve);
+router.patch("/:id/reject", requireRole("origin_admin", "super_admin"), validate(rejectSchema), controller.reject);
+router.patch("/:id/ready", requireRole("destination_admin", "super_admin"), controller.markReady);
+router.patch("/:id/complete", requireRole("destination_admin", "super_admin"), controller.complete);
 router.get("/:id/certificate", requireRole("citizen"), controller.getCertificate);
 
 export default router;

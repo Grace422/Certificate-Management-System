@@ -15,6 +15,12 @@ export async function create(citizenId: string, input: { description: string; ci
     "INSERT INTO audit_logs (actor_id, action, entity, entity_id) VALUES ($1, 'LOSS_DECLARATION_FILED', 'loss_declarations', $2)",
     [citizenId, result.rows[0].id]
   );
+  await notifications.notifyRole("super_admin", {
+    title: "New loss declaration",
+    message: "A citizen has reported a lost certificate and needs review.",
+    entity: "loss_declarations",
+    entityId: result.rows[0].id
+  });
   return result.rows[0];
 }
 

@@ -15,6 +15,11 @@ const upload = multer({
 const router = Router();
 router.use(requireAuth);
 
+// IMPORTANT: "/all" and "/me" must be registered BEFORE "/:id", otherwise
+// Express would match them as an :id param on the route below.
+router.get("/all", requireRole("super_admin"), controller.listAll);
+router.get("/me", requireRole("citizen"), controller.searchMine);
+
 router.get("/", validate(searchQuerySchema), controller.search);
 router.get("/:id", controller.getById);
 

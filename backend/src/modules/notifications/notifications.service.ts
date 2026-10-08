@@ -44,6 +44,26 @@ export async function notifyCouncilAdmins(
   }
 }
 
+/**
+ * Notifies every active user with a given role, with no council
+ * restriction. Used for super_admin, who - unlike origin_admin/
+ * destination_admin - isn't scoped to any particular council and should
+ * always be kept in the loop system-wide.
+ */
+export async function notifyRole(
+  role: "super_admin",
+  params: { title: string; message: string; entity?: string; entityId?: string },
+  client?: PoolClient
+): Promise<void> {
+  const sql = "SELECT id FROM users WHERE role = $1 AND is_active = true";
+  const admins = client
+    ? await client.query<{ id: string }>(sql, [role])
+    : await query<{ id: string }>(sql, [role]);
+  for (const admin of admins.rows) {
+    await create({ userId: admin.id, ...params }, client);
+  }
+}
+
 export async function listMine(userId: string, limit = 50): Promise<NotificationRow[]> {
   const result = await query<NotificationRow>(
     "SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2",

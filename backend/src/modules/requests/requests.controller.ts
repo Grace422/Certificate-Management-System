@@ -25,25 +25,25 @@ export const getById = asyncHandler(async (req: Request, res: Response) => {
 
 export const approve = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
-  const request = await requestsService.approve(req.params.id, req.user.id);
+  const request = await requestsService.approve(req.params.id, req.user);
   sendSuccess(res, toPublicRequest(request), "Request approved and routed to the nearest council");
 });
 
 export const reject = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
-  const request = await requestsService.reject(req.params.id, req.user.id, req.body.reason);
+  const request = await requestsService.reject(req.params.id, req.user, req.body.reason);
   sendSuccess(res, toPublicRequest(request), "Request rejected");
 });
 
 export const markReady = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
-  const request = await requestsService.markReady(req.params.id, req.user.id);
+  const request = await requestsService.markReady(req.params.id, req.user);
   sendSuccess(res, toPublicRequest(request), "Request marked ready for pickup");
 });
 
 export const complete = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
-  const request = await requestsService.complete(req.params.id, req.user.id);
+  const request = await requestsService.complete(req.params.id, req.user);
   sendSuccess(res, toPublicRequest(request), "Request completed");
 });
 

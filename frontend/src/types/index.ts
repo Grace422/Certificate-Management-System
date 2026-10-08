@@ -5,9 +5,15 @@ export interface PublicUser {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string | null;
+  dateOfBirth: string | null;
+  placeOfBirth: string | null;
   role: Role;
   mfaEnabled: boolean;
+  isActive: boolean;
   councilId: string | null;
+  councilName?: string;
+  createdAt: string;
 }
 
 export interface ApiEnvelope<T> {

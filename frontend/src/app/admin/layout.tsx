@@ -21,9 +21,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const nav = [
     { href: "/admin", label: "Overview" },
-    { href: "/admin/requests", label: "Incoming requests" },
-    { href: "/admin/upload", label: "Bulk upload records" },
-    { href: "/admin/audit", label: "Audit log" }
+    { href: "/admin/requests", label: user.role === "destination_admin" ? "Routed requests" : "Incoming requests" },
+    ...(user.role === "super_admin"
+      ? [
+          { href: "/admin/upload", label: "Bulk upload records" },
+          { href: "/admin/users", label: "Manage users" },
+          { href: "/admin/audit", label: "Audit log" }
+        ]
+      : [])
   ];
 
   return (

@@ -40,6 +40,66 @@ export async function search(params: { fullName?: string; dateOfBirth?: string; 
   return result.rows;
 }
 
+/**
+ * Lists recently-imported civil records for the admin "view uploaded data"
+ * screen - closes the gap where an admin could upload a CSV but had no way
+ * to confirm what actually landed in the database.
+ */
+export async function listAll(limit = 100): Promise<CivilRecordRow[]> {
+  const result = await query<CivilRecordRow>(
+    `SELECT cr.*, c.name AS registered_council_name
+     FROM civil_records cr
+     JOIN councils c ON c.id = cr.registered_council_id
+     ORDER BY cr.created_at DESC
+     LIMIT $1`,
+    [limit]
+  );
+  return result.rows;
+}
+
+/**
+ * Looks up civil records matching the CALLING CITIZEN's own profile
+ * (name, and date/place of birth if they provided them at registration) -
+ * this is the backing for "does this user exist in our civil records"
+ * before a certificate request can be submitted. Driven by the citizen's
+ * stored profile rather than a free-text search, so a citizen can only
+ * ever find/request THEIR OWN record, not browse for anyone else's.
+ */
+export async function searchForUser(userId: string): Promise<CivilRecordRow[]> {
+  const userRes = await query<{ first_name: string; last_name: string; date_of_birth: string | null; place_of_birth: string | null }>(
+    "SELECT first_name, last_name, date_of_birth, place_of_birth FROM users WHERE id = $1",
+    [userId]
+  );
+  if (userRes.rowCount === 0) throw ApiError.notFound("User not found");
+  const user = userRes.rows[0];
+
+  // Match first and last name INDEPENDENTLY rather than as one "First Last"
+  // string: civil registers store names surname-first ("Ekema Divine
+  // Ngwane"), while an account has first_name="Divine", last_name="Ekema" -
+  // a combined-string match would wrongly fail on the ordering.
+  const conditions = ["cr.full_name ILIKE $1", "cr.full_name ILIKE $2"];
+  const values: unknown[] = [`%${user.first_name}%`, `%${user.last_name}%`];
+  if (user.date_of_birth) {
+    values.push(user.date_of_birth);
+    conditions.push(`cr.date_of_birth = $${values.length}`);
+  }
+  if (user.place_of_birth) {
+    values.push(`%${user.place_of_birth}%`);
+    conditions.push(`cr.place_of_birth ILIKE $${values.length}`);
+  }
+
+  const result = await query<CivilRecordRow>(
+    `SELECT cr.*, c.name AS registered_council_name
+     FROM civil_records cr
+     JOIN councils c ON c.id = cr.registered_council_id
+     WHERE ${conditions.join(" AND ")}
+     ORDER BY cr.full_name
+     LIMIT 20`,
+    values
+  );
+  return result.rows;
+}
+
 export async function getById(id: string): Promise<CivilRecordRow> {
   const result = await query<CivilRecordRow>(
     `SELECT cr.*, c.name AS registered_council_name, c.region AS registered_council_region

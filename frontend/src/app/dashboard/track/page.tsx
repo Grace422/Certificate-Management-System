@@ -28,6 +28,7 @@ interface DeclarationItem {
   status: string;
   declaredAt: string;
   reviewedAt: string | null;
+  reviewNotes: string | null;
 }
 
 type TrackItem =
@@ -70,9 +71,9 @@ function declarationSteps(d: DeclarationItem): TimelineStep[] {
     return [submitted, { title: "Under review", subtitle: "Awaiting registry review", state: "current" }];
   }
   if (d.status === "rejected") {
-    return [submitted, { title: "Rejected", subtitle: formatDate(d.reviewedAt), state: "rejected" }];
+    return [submitted, { title: "Rejected", subtitle: d.reviewNotes || formatDate(d.reviewedAt), state: "rejected" }];
   }
-  return [submitted, { title: "Verified", subtitle: formatDate(d.reviewedAt), state: "done", isFinal: true }];
+  return [submitted, { title: "Verified", subtitle: d.reviewNotes || formatDate(d.reviewedAt), state: "done", isFinal: true }];
 }
 
 export default function TrackRequestsPage() {

@@ -18,6 +18,17 @@ export const getById = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, toPublicRecord(record), "Record retrieved");
 });
 
+export const listAll = asyncHandler(async (req: Request, res: Response) => {
+  const records = await recordsService.listAll();
+  sendSuccess(res, records.map(toPublicRecord), "Records retrieved");
+});
+
+export const searchMine = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  const records = await recordsService.searchForUser(req.user.id);
+  sendSuccess(res, records.map(toPublicRecord), "Matching records retrieved");
+});
+
 export const bulkUpload = asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) throw ApiError.badRequest("No CSV file uploaded (expected multipart field 'file')");
 
